@@ -8,10 +8,18 @@ SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 META_DIR="$PROJECT_ROOT/meta"
 RUNTIME_DIR="$PROJECT_ROOT/.ovscode_plug"
 RUNTIME_ENV="$RUNTIME_DIR/.env.runtime"
+WORKSPACE_HOME_DIR="$RUNTIME_DIR/workspace_home"
 WORKSPACE_FILE="$META_DIR/project.code-workspace"
 CONTAINER_WORKSPACE_ROOT="/home/workspace"
 
-mkdir -p "$META_DIR" "$RUNTIME_DIR"
+mkdir -p "$META_DIR" "$RUNTIME_DIR" "$WORKSPACE_HOME_DIR"
+if [[ ! -d "$WORKSPACE_HOME_DIR" ]]; then
+  printf 'Error: %s exists but is not a directory.\n' "$WORKSPACE_HOME_DIR" >&2
+  exit 1
+fi
+
+# Best-effort: make the workspace home world-writable so any container UID can persist state.
+chmod 0777 "$WORKSPACE_HOME_DIR" 2>/dev/null || true
 
 ENV_FILE="$PROJECT_ROOT/.env"
 if [[ -f "$ENV_FILE" ]]; then
@@ -210,6 +218,16 @@ workspaces_json_content > "$WORKSPACE_FILE"
 
 mount_args=()
 folders_report=()
+workspace_mount_suffix=":rw"
+if [[ -n "$MOUNT_LABEL" ]]; then
+  mount_label_adjusted="$MOUNT_LABEL"
+  if [[ "$mount_label_adjusted" != :* ]]; then
+    mount_label_adjusted=":$mount_label_adjusted"
+  fi
+  workspace_mount_suffix="${workspace_mount_suffix}${mount_label_adjusted}"
+fi
+mount_args+=("-v" "${WORKSPACE_HOME_DIR}:${CONTAINER_WORKSPACE_ROOT}${workspace_mount_suffix}")
+
 for entry in "${parsed_entries[@]}"; do
   IFS='|' read -r alias mode path <<< "$entry"
   mount_suffix=":$mode"

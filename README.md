@@ -91,6 +91,7 @@ Key features:
 - `OFFLINE_MODE=true` runs the container with `--network none` (no marketplace/extensions updates).
 - `READONLY_CONTAINER=true` adds `--read-only` plus minimal tmpfs mounts to limit writeable locations.
 - `MOUNT_LABEL=:z` (or `:Z`) lets you cooperate with SELinux contexts.
+- Runtime data (extensions, settings, cache) persists under `.ovscode_plug/workspace_home`, which is bind-mounted to `/home/workspace`. Remove it to reset the editor state safely.
 - Logging: set `LOG_FILE=/var/log/openvscode-runtime.log` to tee container logs automatically.
 - `PORT_STRATEGY=auto` finds an alternative port if your preferred value is occupied.
 
