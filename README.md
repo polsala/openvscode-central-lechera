@@ -1,12 +1,3 @@
-## Magic debug
-
-```bash
-set -Eeuo pipefail
-export PS4='+ ${BASH_SOURCE}:${LINENO}:${FUNCNAME[0]:-main}() '
-trap 'rc=$?; echo "ERR $rc at ${BASH_SOURCE[0]}:${LINENO}: $BASH_COMMAND" >&2' ERR
-bash -x ./run.sh
-```
-
 ## What this is and who it is for
 
 This package gives DevOps and security teams a plug-and-play way to run **OpenVSCode Server** locally with strict filesystem exposure, optional hardened reverse proxying, and managed client certificates. It is designed for operators who need repeatable workflows, auditable configuration, and minimal manual wiring.
