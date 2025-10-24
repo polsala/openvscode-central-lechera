@@ -44,12 +44,12 @@ Use `make stop` to shut down, `make logs` to watch runtime logs, and `make dry-r
 - Permission defaults to `ro`.
 - Alias defaults to `basename(<host_path>)`.
 - Aliases may contain letters, numbers, dot, underscore, or hyphen.
-- Mounts appear inside the container under `/workspaces/<alias>`.
+- Mounts appear inside the container under `/home/workspace/<alias>`.
 
 Examples:
 
 1. Default read-only alias from basename  
-   `SOURCE_PATHS=/opt/shared/docs` → `/opt/shared/docs` mounted read-only at `/workspaces/docs`
+   `SOURCE_PATHS=/opt/shared/docs` → `/opt/shared/docs` mounted read-only at `/home/workspace/docs`
 2. Explicit read-write with custom alias  
    `SOURCE_PATHS=/srv/project:rw@App`
 3. Mixed mounts with different permissions  

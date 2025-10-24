@@ -9,6 +9,7 @@ META_DIR="$PROJECT_ROOT/meta"
 RUNTIME_DIR="$PROJECT_ROOT/.ovscode_plug"
 RUNTIME_ENV="$RUNTIME_DIR/.env.runtime"
 WORKSPACE_FILE="$META_DIR/project.code-workspace"
+CONTAINER_WORKSPACE_ROOT="/home/workspace"
 
 mkdir -p "$META_DIR" "$RUNTIME_DIR"
 
@@ -183,7 +184,7 @@ workspaces_json_content() {
 
   for entry in "${parsed_entries[@]}"; do
     IFS='|' read -r alias mode path <<< "$entry"
-    items+=("    { \"name\": \"${alias}\", \"path\": \"/workspaces/${alias}\" }")
+    items+=("    { \"name\": \"${alias}\", \"path\": \"${CONTAINER_WORKSPACE_ROOT}/${alias}\" }")
   done
 
   printf '{\n'
@@ -219,7 +220,7 @@ for entry in "${parsed_entries[@]}"; do
     fi
     mount_suffix="${mount_suffix}${mount_label_adjusted}"
   fi
-  mount_args+=("-v" "${path}:/workspaces/${alias}${mount_suffix}")
+  mount_args+=("-v" "${path}:${CONTAINER_WORKSPACE_ROOT}/${alias}${mount_suffix}")
   folders_report+=("$alias|$mode|$path")
 done
 
