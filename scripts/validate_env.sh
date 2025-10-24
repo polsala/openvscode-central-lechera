@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_ROOT/.env"
+META_DIR="$PROJECT_ROOT/meta"
+PARSED_ENV="$META_DIR/parsed.env"
+
+mkdir -p "$META_DIR"
+
+to_lower() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+# Handle summary mode invoked by run.sh after it assembles the command.
+if [[ "${1:-}" == "--dry-run-summary" ]]; then
+  shift || true
+  summary_dry="$(to_lower "${DRY_RUN:-false}")"
+  if [[ "$summary_dry" == "true" ]]; then
+    printf '\nDRY RUN: Container would be started with:\n%s\n' "${VALIDATION_COMMAND_PREVIEW:-<missing command>}"
+  fi
+  exit 0
+fi
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+
+# Helper: trim leading/trailing whitespace.
+trim() {
+  local value="$1"
+  value="${value#"${value%%[!$' \t\r\n']*}"}"
+  value="${value%"${value##*[!$' \t\r\n']}"}"
+  printf '%s' "$value"
+}
+
+error() {
+  printf 'Error: %s\n' "$1" >&2
+  exit 1
+}
+
+warn() {
+  printf 'Warning: %s\n' "$1" >&2
+}
+
+resolve_path() {
+  local input_path="$1"
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "$input_path"
+    return
+  fi
+  if command -v readlink >/dev/null 2>&1; then
+    readlink -f "$input_path"
+    return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PYCODE' "$input_path"
+import os
+import sys
+path = sys.argv[1]
+print(os.path.abspath(os.path.expanduser(path)))
+PYCODE
+    return
+  fi
+  (
+    cd "$(dirname "$input_path")" >/dev/null 2>&1 || exit 1
+    base=$(basename "$input_path")
+    printf '%s/%s\n' "$(pwd -P)" "$base"
+  )
+}
+
+INTERFACE="${INTERFACE:-}"
+PORT="${PORT:-}"
+SOURCE_PATHS="${SOURCE_PATHS:-}"
+USERMAP="${USERMAP:-}"
+MOUNT_LABEL="${MOUNT_LABEL:-}"
+DRY_RUN="$(to_lower "${DRY_RUN:-false}")"
+
+[[ -n "$INTERFACE" ]] || error "INTERFACE is required (e.g., 127.0.0.1)."
+[[ -n "$PORT" ]] || error "PORT is required (e.g., 5000)."
+[[ "$PORT" =~ ^[0-9]+$ ]] || error "PORT must be numeric. Got '$PORT'."
+if (( PORT < 1 || PORT > 65535 )); then
+  error "PORT must be between 1 and 65535. Got '$PORT'."
+fi
+
+SOURCE_PATHS="$(trim "$SOURCE_PATHS")"
+[[ -n "$SOURCE_PATHS" ]] || error "SOURCE_PATHS is required. See README for grammar."
+
+IFS=',' read -r -a raw_entries <<< "$SOURCE_PATHS"
+
+declare -a parsed_lines=()
+declare -a alias_list=()
+declare -a real_paths=()
+PARSED_ENTRIES=""
+
+printf 'Mount table:\n'
+printf '  alias | mode | host_path\n'
+
+for raw_entry in "${raw_entries[@]}"; do
+  entry="$(trim "$raw_entry")"
+  [[ -n "$entry" ]] || continue
+
+  alias=""
+  mode="ro"
+  path_part="$entry"
+
+  if [[ "$path_part" == *@* ]]; then
+    alias="${path_part##*@}"
+    path_part="${path_part%@*}"
+    alias="$(trim "$alias")"
+  fi
+
+  if [[ "$path_part" == *":ro" ]] || [[ "$path_part" == *":rw" ]]; then
+    mode="${path_part##*:}"
+    path_part="${path_part%:*}"
+  fi
+
+  path_part="$(trim "$path_part")"
+  [[ -n "$path_part" ]] || error "Missing host path in entry '$entry'."
+
+  if [[ -z "$alias" ]]; then
+    alias="$(basename "$path_part")"
+    alias="$(trim "$alias")"
+  fi
+
+  [[ -n "$alias" ]] || error "Could not determine alias for path '$path_part'."
+
+  if [[ "$alias" =~ [^A-Za-z0-9._-] ]]; then
+    error "Alias '$alias' contains unsupported characters. Use letters, numbers, dot, underscore, or hyphen."
+  fi
+
+  if [[ "$mode" != "ro" && "$mode" != "rw" ]]; then
+    error "Invalid mode '$mode' in entry '$entry'. Only ro or rw are allowed."
+  fi
+
+  if [[ ! -e "$path_part" ]]; then
+    error "Host path '$path_part' does not exist."
+  fi
+
+  if [[ "$mode" == "rw" && ! -w "$path_part" ]]; then
+    warn "Host path '$path_part' is not writable by current user; container writes may fail."
+  fi
+
+  if [[ ! -r "$path_part" ]]; then
+    error "Host path '$path_part' is not readable."
+  fi
+
+  for existing_alias in "${alias_list[@]}"; do
+    if [[ "$alias" == "$existing_alias" ]]; then
+      error "Duplicate alias '$alias'. Use unique aliases for each entry."
+    fi
+  done
+
+  resolved="$(resolve_path "$path_part")"
+  if [[ -z "$resolved" ]]; then
+    error "Failed to resolve absolute path for '$path_part'."
+  fi
+
+  for existing_path in "${real_paths[@]}"; do
+    if [[ "$resolved" == "$existing_path" ]]; then
+      warn "Duplicate path '$resolved' detected. Continuing with single mount."
+      continue
+    fi
+    if [[ "${resolved#"${existing_path}/"}" != "$resolved" ]] || [[ "${existing_path#"${resolved}/"}" != "$existing_path" ]]; then
+      warn "Overlapping paths '$resolved' and '$existing_path'. Container will honor most specific mount last."
+    fi
+  done
+
+  alias_list+=("$alias")
+  real_paths+=("$resolved")
+  parsed_lines+=("$alias|$mode|$resolved")
+  printf '  %s | %s | %s\n' "$alias" "$mode" "$resolved"
+done
+
+if [[ ${#parsed_lines[@]} -eq 0 ]]; then
+  error "No valid entries were parsed from SOURCE_PATHS."
+fi
+
+PARSED_ENTRIES=$(IFS=';'; printf '%s' "${parsed_lines[*]}")
+
+{
+  printf '# Generated by validate_env.sh; do not edit manually.\n'
+  printf 'PARSED_ENTRIES=%q\n' "$PARSED_ENTRIES"
+} > "$PARSED_ENV"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  printf '\nDRY RUN: Validation completed. Container execution skipped.\n'
+fi
