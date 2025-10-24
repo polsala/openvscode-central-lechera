@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-set -euo pipefail
+#set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
@@ -250,15 +250,13 @@ if [[ "$READONLY_CONTAINER" == "true" ]]; then
 fi
 
 container_args+=("${mount_args[@]}")
+container_args+=("-e" "CONNECTION_TOKEN=${CONNECTION_TOKEN}")
 container_args+=("$IMAGE")
-container_args+=("--host" "0.0.0.0")
-container_args+=("--port" "3000")
 
 if [[ -n "$BASE_PATH" ]]; then
   container_args+=("--server-base-path" "$BASE_PATH")
 fi
 
-container_args+=("--connection-token" "$CONNECTION_TOKEN")
 container_args+=("/wsmeta/project.code-workspace")
 
 join_command() {
