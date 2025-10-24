@@ -1,15 +1,3 @@
-# Resumen rápido
-- Lanza OpenVSCode Server con montajes `ro/rw` declarados en `SOURCE_PATHS`.
-- Autodetecta Docker/Podman, puertos libres y `uid:gid` según tus carpetas.
-- Genera `project.code-workspace` multi-root con solo las rutas autorizadas.
-- Crea y persiste tokens de conexión seguros por ejecución.
-- Incluye una CA local sencilla (init/server/client/revoke) y plantillas mTLS de Nginx.
-- Soporta base path, modo offline, contenedor read-only y etiqueta SELinux opcionales.
-- Makefile simplifica `run`, `stop`, `logs`, operaciones CA y guía Nginx.
-- Documentación completa con pruebas manuales y resolución de problemas.
-
----
-
 ## What this is and who it is for
 
 This package gives DevOps and security teams a plug-and-play way to run **OpenVSCode Server** locally with strict filesystem exposure, optional hardened reverse proxying, and managed client certificates. It is designed for operators who need repeatable workflows, auditable configuration, and minimal manual wiring.
