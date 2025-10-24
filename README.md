@@ -1,14 +1,11 @@
-# Resumen rápido
-- Lanza OpenVSCode Server con montajes `ro/rw` declarados en `SOURCE_PATHS`.
-- Autodetecta Docker/Podman, puertos libres y `uid:gid` según tus carpetas.
-- Genera `project.code-workspace` multi-root con solo las rutas autorizadas.
-- Crea y persiste tokens de conexión seguros por ejecución.
-- Incluye una CA local sencilla (init/server/client/revoke) y plantillas mTLS de Nginx.
-- Soporta base path, modo offline, contenedor read-only y etiqueta SELinux opcionales.
-- Makefile simplifica `run`, `stop`, `logs`, operaciones CA y guía Nginx.
-- Documentación completa con pruebas manuales y resolución de problemas.
+## Magic debug
 
----
+```bash
+set -Eeuo pipefail
+export PS4='+ ${BASH_SOURCE}:${LINENO}:${FUNCNAME[0]:-main}() '
+trap 'rc=$?; echo "ERR $rc at ${BASH_SOURCE[0]}:${LINENO}: $BASH_COMMAND" >&2' ERR
+bash -x ./run.sh
+```
 
 ## What this is and who it is for
 
