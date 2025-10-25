@@ -131,6 +131,7 @@ Any CLI variable (`make run PORT=7001`) overrides `.env` for that invocation.
 - `./ca/ca-easy.sh server dev.example.test dns:code.dev.example.test ip:127.0.0.1` → Issues `server.dev.example.test.{key,csr,crt}`.
 - `./ca/ca-easy.sh client alice supersecret` → Issues `alice.{key,csr,crt,p12}` (PKCS#12 protected with `supersecret`).
 - `./ca/ca-easy.sh revoke alice` → Updates `crl.pem`; redeploy it and reload Nginx to enforce revocation.
+- Pass `--ca-path /opt/openvscode-ca` (or `CA_PATH=/opt/openvscode-ca`) to store CA material outside `ca/`. `make ca-*` honors `CA_PATH=/opt/openvscode-ca` so you can keep secrets in a separate directory.
 
 The generated `.p12` packages import smoothly on macOS, Windows, and Linux browsers.
 

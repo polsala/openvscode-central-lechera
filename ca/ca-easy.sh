@@ -2,23 +2,27 @@
 # shellcheck shell=bash
 set -euo pipefail
 
-CA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$CA_DIR/openssl.cnf"
-CA_KEY="$CA_DIR/ca.key"
-CA_CERT="$CA_DIR/ca.crt"
-INDEX_FILE="$CA_DIR/index.txt"
-SERIAL_FILE="$CA_DIR/serial"
-CERTS_DIR="$CA_DIR/certs"
-CSR_DIR="$CA_DIR/csr"
-CRL_FILE="$CA_DIR/crl.pem"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_CA_DIR="$SCRIPT_DIR"
+CA_DIR="${CA_PATH:-$DEFAULT_CA_DIR}"
+
+CONFIG_FILE=""
+CA_KEY=""
+CA_CERT=""
+INDEX_FILE=""
+SERIAL_FILE=""
+CERTS_DIR=""
+CSR_DIR=""
+CRL_FILE=""
+REMAINING_ARGS=()
 
 usage() {
   cat <<'EOF'
 Usage:
-  ca-easy.sh init
-  ca-easy.sh server <domain> [SAN ...]
-  ca-easy.sh client <name> [P12_PASSWORD]
-  ca-easy.sh revoke <name>
+  ca-easy.sh [--ca-path DIR] init
+  ca-easy.sh [--ca-path DIR] server <domain> [SAN ...]
+  ca-easy.sh [--ca-path DIR] client <name> [P12_PASSWORD]
+  ca-easy.sh [--ca-path DIR] revoke <name>
 
 Examples:
   ca-easy.sh init
@@ -28,7 +32,61 @@ Examples:
   ca-easy.sh revoke alice
 
 SAN syntax accepts tokens prefixed with dns: or ip:. Tokens are case-insensitive.
+
+You can override the CA output directory by exporting CA_PATH or passing --ca-path DIR.
 EOF
+}
+
+set_ca_paths() {
+  if [[ -d "$CA_DIR" ]]; then
+    CA_DIR="$(cd "$CA_DIR" && pwd)"
+  fi
+
+  CONFIG_FILE="$CA_DIR/openssl.cnf"
+  CA_KEY="$CA_DIR/ca.key"
+  CA_CERT="$CA_DIR/ca.crt"
+  INDEX_FILE="$CA_DIR/index.txt"
+  SERIAL_FILE="$CA_DIR/serial"
+  CERTS_DIR="$CA_DIR/certs"
+  CSR_DIR="$CA_DIR/csr"
+  CRL_FILE="$CA_DIR/crl.pem"
+}
+
+parse_global_flags() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ca-path=*)
+        CA_DIR="${1#*=}"
+        shift
+        ;;
+      --ca-path)
+        if [[ $# -lt 2 ]]; then
+          printf 'Error: --ca-path requires a directory value.\n' >&2
+          exit 1
+        fi
+        CA_DIR="$2"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        printf 'Error: Unknown option %s\n' "$1" >&2
+        usage
+        exit 1
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  REMAINING_ARGS=("$@")
 }
 
 require_openssl() {
@@ -59,7 +117,7 @@ init_ca() {
     exit 1
   fi
 
-  mkdir -p "$CERTS_DIR" "$CSR_DIR"
+  mkdir -p "$CA_DIR" "$CERTS_DIR" "$CSR_DIR"
   : > "$INDEX_FILE"
   if [[ ! -f "$SERIAL_FILE" ]]; then
     printf '1000\n' > "$SERIAL_FILE"
@@ -271,6 +329,10 @@ revoke_client() {
 }
 
 main() {
+  parse_global_flags "$@"
+  set_ca_paths
+  set -- "${REMAINING_ARGS[@]}"
+
   local subcommand="${1:-}"
   case "$subcommand" in
     init)

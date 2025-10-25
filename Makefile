@@ -14,7 +14,11 @@ HELP_ROWS := \
   "ca-revoke      Revoke a client certificate (NAME= required)" \
   "nginx-print    Print Nginx guidance based on BASE_PATH" \
   "dry-run        Preview container plan without executing" \
-  "clean          Remove runtime artifacts (CLEAN_CA=true to wipe CA)"
+  "clean          Remove runtime artifacts (CLEAN_CA=true to wipe CA)" \
+  "CA_PATH=/dir   Override CA storage path for all make ca-* targets"
+
+CA_EASY := ./ca/ca-easy.sh
+CA_PATH_FLAG := $(if $(CA_PATH),--ca-path "$(CA_PATH)",)
 
 help:
 	@printf "Available targets:\n"
@@ -45,7 +49,7 @@ update:
 	$$ENGINE pull "$$IMAGE"
 
 ca-init:
-	@./ca/ca-easy.sh init
+	@$(CA_EASY) $(CA_PATH_FLAG) init
 
 ca-server:
 	@if [ -z "$(DOMAIN)" ]; then \
@@ -54,21 +58,21 @@ ca-server:
 	fi
 	@SAN_INPUT="$(SAN)"; \
 	IFS=',' read -r -a SAN_LIST <<< "$$SAN_INPUT"; \
-	./ca/ca-easy.sh server "$(DOMAIN)" "$${SAN_LIST[@]}"
+	$(CA_EASY) $(CA_PATH_FLAG) server "$(DOMAIN)" "$${SAN_LIST[@]}"
 
 ca-client:
 	@if [ -z "$(NAME)" ]; then \
 		printf "Error: NAME is required. Usage: make ca-client NAME=alice [P12_PASS=secret]\n" >&2; \
 		exit 1; \
 	fi
-	@./ca/ca-easy.sh client "$(NAME)" "$(P12_PASS)"
+	@$(CA_EASY) $(CA_PATH_FLAG) client "$(NAME)" "$(P12_PASS)"
 
 ca-revoke:
 	@if [ -z "$(NAME)" ]; then \
 		printf "Error: NAME is required. Usage: make ca-revoke NAME=alice\n" >&2; \
 		exit 1; \
 	fi
-	@./ca/ca-easy.sh revoke "$(NAME)"
+	@$(CA_EASY) $(CA_PATH_FLAG) revoke "$(NAME)"
 
 nginx-print:
 	@BASE_PATH_VALUE="$${BASE_PATH:-}"; \
