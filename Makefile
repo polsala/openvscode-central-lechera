@@ -76,13 +76,36 @@ ca-revoke:
 
 nginx-print:
 	@BASE_PATH_VALUE="$${BASE_PATH:-}"; \
+	TEMPLATE="nginx/ovscode_mtls.conf"; \
+	SUBST_VARS='$${SERVER_NAME} $${SERVER_CERT} $${SERVER_KEY} $${CA_CRT} $${UPSTREAM_PORT} $${BASE_PATH}'; \
 	if [ -z "$$BASE_PATH_VALUE" ]; then \
-	  printf "Use nginx/ovscode_mtls.conf (subdomain). Placeholders:\n"; \
-	  printf "  <SERVER_NAME> <SERVER_CERT> <SERVER_KEY> <CA_CRT> <UPSTREAM_PORT>\n"; \
+	  printf 'Use %s (subdomain).\n' "$$TEMPLATE"; \
+	  printf 'Placeholders: $${SERVER_NAME} $${SERVER_CERT} $${SERVER_KEY} $${CA_CRT} $${UPSTREAM_PORT}\n'; \
 	else \
-	  printf "Use nginx/ovscode_mtls_subpath.conf (subpath). Set BASE_PATH=%s in .env and replace <BASE_PATH> accordingly.\n" "$$BASE_PATH_VALUE"; \
-	  printf "Placeholders: <SERVER_NAME> <SERVER_CERT> <SERVER_KEY> <CA_CRT> <UPSTREAM_PORT> <BASE_PATH>\n"; \
-	fi
+	  TEMPLATE="nginx/ovscode_mtls_subpath.conf"; \
+	  printf 'Use %s (subpath). Set BASE_PATH=%s in .env and replace $${BASE_PATH} accordingly.\n' "$$TEMPLATE" "$$BASE_PATH_VALUE"; \
+	  printf 'Placeholders: $${SERVER_NAME} $${SERVER_CERT} $${SERVER_KEY} $${CA_CRT} $${UPSTREAM_PORT} $${BASE_PATH}\n'; \
+	fi; \
+	printf '\nCurrent values (set env VAR=value make nginx-print to change):\n'; \
+	printf '  $${SERVER_NAME}   -> %s\n' "$${SERVER_NAME:-<set SERVER_NAME=code.example.test>}"; \
+	printf '  $${SERVER_CERT}   -> %s\n' "$${SERVER_CERT:-<set SERVER_CERT=/opt/certs/server.crt>}"; \
+	printf '  $${SERVER_KEY}    -> %s\n' "$${SERVER_KEY:-<set SERVER_KEY=/opt/certs/server.key>}"; \
+	printf '  $${CA_CRT}        -> %s\n' "$${CA_CRT:-<set CA_CRT=/opt/certs/ca.crt>}"; \
+	printf '  $${UPSTREAM_PORT} -> %s\n' "$${UPSTREAM_PORT:-<set UPSTREAM_PORT=7000>}"; \
+	if [ -n "$$BASE_PATH_VALUE" ]; then \
+	  printf '  $${BASE_PATH}     -> %s\n' "$$BASE_PATH_VALUE"; \
+	fi; \
+	printf '\nFill the template with envsubst (edit the destination path as needed):\n'; \
+	printf "  env SERVER_NAME=\"%s\" SERVER_CERT=\"%s\" SERVER_KEY=\"%s\" CA_CRT=\"%s\" UPSTREAM_PORT=\"%s\" BASE_PATH=\"%s\" envsubst '%s' < %s > /tmp/ovscode.conf\n" \
+	  "$${SERVER_NAME:-code.example.test}" \
+	  "$${SERVER_CERT:-/opt/certs/server.crt}" \
+	  "$${SERVER_KEY:-/opt/certs/server.key}" \
+	  "$${CA_CRT:-/opt/certs/ca.crt}" \
+	  "$${UPSTREAM_PORT:-7000}" \
+	  "$$BASE_PATH_VALUE" \
+	  "$$SUBST_VARS" \
+	  "$$TEMPLATE"; \
+	printf "\nOpen /tmp/ovscode.conf, review, then copy it into /etc/nginx/conf.d/.\n"
 
 dry-run:
 	@DRY_RUN=true ./run.sh

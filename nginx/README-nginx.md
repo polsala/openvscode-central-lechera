@@ -31,12 +31,13 @@ Use the **subdomain** template when the editor lives at its own hostname. Use th
    - `ovscode_mtls_subpath.conf` → subpath (set `BASE_PATH=/clienteA` in `.env` and expose via `https://portal.example.test/clienteA/`).
 
 4. **Fill placeholders**
-   - Replace `<SERVER_NAME>` with your hostname.
-   - Point `<SERVER_CERT>` and `<SERVER_KEY>` to the server cert/key.
-   - Set `<CA_CRT>` to the CA bundle (usually `ca.crt`).
-   - For the subpath template, replace `<BASE_PATH>` everywhere with the same value used in `.env`.
-   - Replace `<UPSTREAM_PORT>` with the host port where OpenVSCode listens (from `PORT`/`PORT_STRATEGY`).
-   - If you generated a CRL, uncomment `ssl_crl` and point it to the deployed `crl.pem`.
+   - Run `SERVER_NAME=code.example.test SERVER_CERT=/opt/certs/server.crt ... make nginx-print` and copy the suggested `envsubst '${SERVER_NAME} ...'` command, or manually edit the `${VAR}` tokens in the template.
+   - Replace `${SERVER_NAME}` with your hostname.
+   - Point `${SERVER_CERT}` and `${SERVER_KEY}` to the server cert/key.
+   - Set `${CA_CRT}` to the CA bundle (usually `ca.crt`).
+   - For the subpath template, replace `${BASE_PATH}` everywhere with the same value used in `.env`.
+   - Replace `${UPSTREAM_PORT}` with the host port where OpenVSCode listens (from `PORT`/`PORT_STRATEGY`).
+   - If you generated a CRL, uncomment `ssl_crl` and point it to the deployed `crl.pem` (set `${CRL_PATH}` via envsubst or edit manually).
 
 5. **Enable the site and reload Nginx**
    - Drop the filled template into `/etc/nginx/conf.d/` or an `sites-available`/`sites-enabled` pair.
@@ -61,7 +62,7 @@ Use the **subdomain** template when the editor lives at its own hostname. Use th
 - **Revocation not enforced** → Confirm `ssl_crl` points to the latest CRL and reload Nginx after running `./ca-easy.sh revoke`.
 - **SAN mismatch** → `openssl x509 -in server.<domain>.crt -text` and confirm the requested hostname is listed under *Subject Alternative Name*.
 - **WebSockets failing** → Make sure the `proxy_set_header Upgrade` and `Connection` directives remain intact.
-- **Subpath errors** → The `BASE_PATH` in `.env` must match the `<BASE_PATH>` placeholder in the Nginx template, and OpenVSCode must be started with the same base path.
+- **Subpath errors** → The `BASE_PATH` in `.env` must match the `${BASE_PATH}` token in the Nginx template, and OpenVSCode must be started with the same base path.
 
 ---
 

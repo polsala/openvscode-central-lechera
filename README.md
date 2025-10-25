@@ -74,7 +74,7 @@ When `BASE_PATH` is set (for example, `/clienteA`):
 - The printed URL becomes `http://$INTERFACE:$PORT/clienteA/`.
 - Use `nginx/ovscode_mtls_subpath.conf` to publish through a reverse proxy.
 - Always include the leading slash and omit the trailing slash in `.env`.
-- The subpath template issues a 301 to enforce `<BASE_PATH>/` and forwards WebSocket traffic correctly.
+- The subpath template issues a 301 to enforce `${BASE_PATH}/` and forwards WebSocket traffic correctly.
 
 With `BASE_PATH` unset, the application serves from `/` and the subdomain Nginx template (`ovscode_mtls.conf`) is the right choice.
 
@@ -118,7 +118,7 @@ The `Makefile` consolidates daily tasks:
 - `make logs` to follow live logs (honors `CONTAINER_NAME` overrides).
 - `make update` to `docker pull` / `podman pull` the configured image.
 - `make ca-*` family for CA initialization, server/client issuance, and revocation.
-- `make nginx-print` to remind you which template to use based on `BASE_PATH`.
+- `make nginx-print` to remind you which template to use based on `BASE_PATH` and echo the current `SERVER_NAME/SERVER_CERT/...` values (pass them inline, e.g. `SERVER_NAME=code.example.test make nginx-print`).
 - `make clean` to remove runtime artifacts (`CLEAN_CA=true` wipes CA outputs).
 
 Any CLI variable (`make run PORT=7001`) overrides `.env` for that invocation.
